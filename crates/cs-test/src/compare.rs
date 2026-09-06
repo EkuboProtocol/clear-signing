@@ -29,14 +29,46 @@ impl FieldKind {
 
 #[derive(Debug, Clone)]
 pub enum Failure {
-    IntentMismatch { path: Vec<String>, expected: String, actual: String },
-    InterpolatedIntentMismatch { expected: String, actual: Option<String> },
-    OwnerMismatch { expected: Option<String>, actual: Option<String> },
-    FieldMissing { path: Vec<String>, label: String, expected_kind: FieldKind },
-    FieldExtra { path: Vec<String>, label: String, actual_summary: String },
-    FieldValueMismatch { path: Vec<String>, label: String, expected: String, actual: String },
-    FieldKindMismatch { path: Vec<String>, label: String, expected_kind: FieldKind, actual_kind: FieldKind },
-    AmbiguousLabel { path: Vec<String>, label: String, actual_values: Vec<String> },
+    IntentMismatch {
+        path: Vec<String>,
+        expected: String,
+        actual: String,
+    },
+    InterpolatedIntentMismatch {
+        expected: String,
+        actual: Option<String>,
+    },
+    OwnerMismatch {
+        expected: Option<String>,
+        actual: Option<String>,
+    },
+    FieldMissing {
+        path: Vec<String>,
+        label: String,
+        expected_kind: FieldKind,
+    },
+    FieldExtra {
+        path: Vec<String>,
+        label: String,
+        actual_summary: String,
+    },
+    FieldValueMismatch {
+        path: Vec<String>,
+        label: String,
+        expected: String,
+        actual: String,
+    },
+    FieldKindMismatch {
+        path: Vec<String>,
+        label: String,
+        expected_kind: FieldKind,
+        actual_kind: FieldKind,
+    },
+    AmbiguousLabel {
+        path: Vec<String>,
+        label: String,
+        actual_values: Vec<String>,
+    },
 }
 
 enum ActualField<'a> {
@@ -90,7 +122,11 @@ pub fn compare(description: &str, expected: &Expected, outcome: &FormatOutcome) 
         &mut failures,
     );
 
-    CaseResult { description: description.to_string(), passed: failures.is_empty(), failures }
+    CaseResult {
+        description: description.to_string(),
+        passed: failures.is_empty(),
+        failures,
+    }
 }
 
 fn compare_level(
@@ -120,8 +156,15 @@ fn compare_level(
                     actual_pairs.push((label.clone(), ActualField::Scalar(value.as_str())));
                 }
             }
-            DisplayEntry::Nested { label, intent, entries } => {
-                actual_pairs.push((label.clone(), ActualField::Nested(intent.as_str(), entries.as_slice())));
+            DisplayEntry::Nested {
+                label,
+                intent,
+                entries,
+            } => {
+                actual_pairs.push((
+                    label.clone(),
+                    ActualField::Nested(intent.as_str(), entries.as_slice()),
+                ));
             }
         }
     }
@@ -232,10 +275,18 @@ mod tests {
     use indexmap::IndexMap;
 
     fn outcome(model: DisplayModel) -> FormatOutcome {
-        FormatOutcome::ClearSigned { model, diagnostics: vec![] }
+        FormatOutcome::ClearSigned {
+            model,
+            diagnostics: vec![],
+        }
     }
 
-    fn model(intent: &str, interpolated: Option<&str>, owner: Option<&str>, entries: Vec<DisplayEntry>) -> DisplayModel {
+    fn model(
+        intent: &str,
+        interpolated: Option<&str>,
+        owner: Option<&str>,
+        entries: Vec<DisplayEntry>,
+    ) -> DisplayModel {
         DisplayModel {
             intent: intent.to_string(),
             interpolated_intent: interpolated.map(str::to_string),
@@ -246,11 +297,18 @@ mod tests {
     }
 
     fn item(label: &str, value: &str) -> DisplayEntry {
-        DisplayEntry::Item(DisplayItem { label: label.to_string(), value: value.to_string() })
+        DisplayEntry::Item(DisplayItem {
+            label: label.to_string(),
+            value: value.to_string(),
+        })
     }
 
     fn nested(label: &str, intent: &str, entries: Vec<DisplayEntry>) -> DisplayEntry {
-        DisplayEntry::Nested { label: label.to_string(), intent: intent.to_string(), entries }
+        DisplayEntry::Nested {
+            label: label.to_string(),
+            intent: intent.to_string(),
+            entries,
+        }
     }
 
     fn expected_with(intent: &str, fields: IndexMap<String, FieldExpected>) -> Expected {
@@ -272,46 +330,85 @@ mod tests {
 
     #[test]
     fn nested_expected_matches_nested_actual() {
-        let o = outcome(model("Outer", None, None, vec![
-            nested("Transaction", "Inner", vec![item("Recipient", "0xabc")]),
-        ]));
+        let o = outcome(model(
+            "Outer",
+            None,
+            None,
+            vec![nested(
+                "Transaction",
+                "Inner",
+                vec![item("Recipient", "0xabc")],
+            )],
+        ));
         let inner_fields = fields_with(&[("Recipient", FieldExpected::Value("0xabc".into()))]);
-        let exp = expected_with("Outer", fields_with(&[(
-            "Transaction",
-            FieldExpected::Nested(NestedExpected { intent: "Inner".into(), fields: inner_fields }),
-        )]));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[(
+                "Transaction",
+                FieldExpected::Nested(NestedExpected {
+                    intent: "Inner".into(),
+                    fields: inner_fields,
+                }),
+            )]),
+        );
         let r = compare("t", &exp, &o);
         assert!(r.passed, "expected pass, got failures: {:?}", r.failures);
     }
 
     #[test]
     fn nested_value_mismatch_reports_path() {
-        let o = outcome(model("Outer", None, None, vec![
-            nested("Transaction", "Inner", vec![item("Recipient", "0xWRONG")]),
-        ]));
+        let o = outcome(model(
+            "Outer",
+            None,
+            None,
+            vec![nested(
+                "Transaction",
+                "Inner",
+                vec![item("Recipient", "0xWRONG")],
+            )],
+        ));
         let inner_fields = fields_with(&[("Recipient", FieldExpected::Value("0xabc".into()))]);
-        let exp = expected_with("Outer", fields_with(&[(
-            "Transaction",
-            FieldExpected::Nested(NestedExpected { intent: "Inner".into(), fields: inner_fields }),
-        )]));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[(
+                "Transaction",
+                FieldExpected::Nested(NestedExpected {
+                    intent: "Inner".into(),
+                    fields: inner_fields,
+                }),
+            )]),
+        );
         let r = compare("t", &exp, &o);
         assert!(!r.passed);
         let has_pathed_value = r.failures.iter().any(|f| matches!(
             f,
             Failure::FieldValueMismatch { path, label, .. } if path == &["Transaction".to_string()] && label == "Recipient"
         ));
-        assert!(has_pathed_value, "no path-tagged FieldValueMismatch in {:?}", r.failures);
+        assert!(
+            has_pathed_value,
+            "no path-tagged FieldValueMismatch in {:?}",
+            r.failures
+        );
     }
 
     #[test]
     fn nested_intent_mismatch_reports_path() {
-        let o = outcome(model("Outer", None, None, vec![
-            nested("Transaction", "ACTUAL", vec![]),
-        ]));
-        let exp = expected_with("Outer", fields_with(&[(
-            "Transaction",
-            FieldExpected::Nested(NestedExpected { intent: "EXPECTED".into(), fields: IndexMap::new() }),
-        )]));
+        let o = outcome(model(
+            "Outer",
+            None,
+            None,
+            vec![nested("Transaction", "ACTUAL", vec![])],
+        ));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[(
+                "Transaction",
+                FieldExpected::Nested(NestedExpected {
+                    intent: "EXPECTED".into(),
+                    fields: IndexMap::new(),
+                }),
+            )]),
+        );
         let r = compare("t", &exp, &o);
         let hit = r.failures.iter().any(|f| matches!(
             f,
@@ -324,10 +421,16 @@ mod tests {
     #[test]
     fn kind_mismatch_scalar_vs_nested() {
         let o = outcome(model("Outer", None, None, vec![item("X", "v")]));
-        let exp = expected_with("Outer", fields_with(&[(
-            "X",
-            FieldExpected::Nested(NestedExpected { intent: "y".into(), fields: IndexMap::new() }),
-        )]));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[(
+                "X",
+                FieldExpected::Nested(NestedExpected {
+                    intent: "y".into(),
+                    fields: IndexMap::new(),
+                }),
+            )]),
+        );
         let r = compare("t", &exp, &o);
         let hit = r.failures.iter().any(|f| matches!(
             f,
@@ -339,7 +442,10 @@ mod tests {
     #[test]
     fn kind_mismatch_nested_vs_scalar() {
         let o = outcome(model("Outer", None, None, vec![nested("X", "y", vec![])]));
-        let exp = expected_with("Outer", fields_with(&[("X", FieldExpected::Value("v".into()))]));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[("X", FieldExpected::Value("v".into()))]),
+        );
         let r = compare("t", &exp, &o);
         let hit = r.failures.iter().any(|f| matches!(
             f,
@@ -370,33 +476,55 @@ mod tests {
         let o = outcome(model("Outer", Some("Whatever"), None, vec![]));
         let exp = expected_with("Outer", IndexMap::new());
         let r = compare("t", &exp, &o);
-        let has_inter = r.failures.iter().any(|f| matches!(f, Failure::InterpolatedIntentMismatch { .. }));
-        assert!(!has_inter, "should not check interpolated_intent when expected is None; got {:?}", r.failures);
+        let has_inter = r
+            .failures
+            .iter()
+            .any(|f| matches!(f, Failure::InterpolatedIntentMismatch { .. }));
+        assert!(
+            !has_inter,
+            "should not check interpolated_intent when expected is None; got {:?}",
+            r.failures
+        );
     }
 
     #[test]
     fn duplicate_label_inside_nested_block_reports_correct_path() {
-        let o = outcome(model("Outer", None, None, vec![
-            nested("Transaction", "Inner", vec![
-                item("Amount", "1"),
-                item("Amount", "2"),
-            ]),
-        ]));
+        let o = outcome(model(
+            "Outer",
+            None,
+            None,
+            vec![nested(
+                "Transaction",
+                "Inner",
+                vec![item("Amount", "1"), item("Amount", "2")],
+            )],
+        ));
         let inner_fields = fields_with(&[("Amount", FieldExpected::Value("1".into()))]);
-        let exp = expected_with("Outer", fields_with(&[(
-            "Transaction",
-            FieldExpected::Nested(NestedExpected { intent: "Inner".into(), fields: inner_fields }),
-        )]));
+        let exp = expected_with(
+            "Outer",
+            fields_with(&[(
+                "Transaction",
+                FieldExpected::Nested(NestedExpected {
+                    intent: "Inner".into(),
+                    fields: inner_fields,
+                }),
+            )]),
+        );
         let r = compare("t", &exp, &o);
         let hit = r.failures.iter().any(|f| matches!(
             f,
             Failure::AmbiguousLabel { path, label, .. } if path == &["Transaction".to_string()] && label == "Amount"
         ));
         assert!(hit, "no path-tagged AmbiguousLabel in {:?}", r.failures);
-        let value_compare_skipped = !r.failures.iter().any(|f| matches!(
-            f,
-            Failure::FieldValueMismatch { label, .. } if label == "Amount"
-        ));
-        assert!(value_compare_skipped, "should skip per-label compare when ambiguous");
+        let value_compare_skipped = !r.failures.iter().any(|f| {
+            matches!(
+                f,
+                Failure::FieldValueMismatch { label, .. } if label == "Amount"
+            )
+        });
+        assert!(
+            value_compare_skipped,
+            "should skip per-label compare when ambiguous"
+        );
     }
 }

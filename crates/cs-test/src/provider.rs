@@ -48,11 +48,13 @@ impl DataProvider for StubDataProvider {
         _types: Option<&[String]>,
     ) -> Pin<Box<dyn Future<Output = Option<String>> + Send + '_>> {
         let key = Self::normalize(address);
-        let name = self
-            .stub
-            .address_names
-            .iter()
-            .find_map(|(k, v)| if Self::normalize(k) == key { Some(v.clone()) } else { None });
+        let name = self.stub.address_names.iter().find_map(|(k, v)| {
+            if Self::normalize(k) == key {
+                Some(v.clone())
+            } else {
+                None
+            }
+        });
         Box::pin(async move { name })
     }
 }

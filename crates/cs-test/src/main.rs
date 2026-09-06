@@ -8,7 +8,11 @@ use cs_test::report::{render_json, render_markdown};
 use cs_test::runner::run_file;
 
 #[derive(Parser)]
-#[command(name = "cs-test", version, about = "ERC-7730 test runner using the clear-signing engine")]
+#[command(
+    name = "cs-test",
+    version,
+    about = "ERC-7730 test runner using the clear-signing engine"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -40,7 +44,9 @@ fn main() -> ExitCode {
 }
 
 fn dispatch(file: PathBuf, case: Option<String>, json: bool) -> Result<bool> {
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
     let results = runtime.block_on(run_file(&file, case.as_deref()))?;
     let all_passed = results.iter().all(|r| r.passed);
     if json {
